@@ -13,12 +13,11 @@ from scipy.spatial import cKDTree
 
 # 1. 加载点云（xyz格式）
 def load_xyz(file_path):
-    # 自动将 /input/ 或 /outs/ 路径映射到 pointcloud_preprocess/input/ 和 outs/
-    base_dir = os.path.dirname(__file__)
+    # 自动将 /input/ 或 /outs/ 路径映射到当前脚本目录下
     if file_path.startswith("/input/"):
-        file_path = os.path.join(base_dir, "input", os.path.basename(file_path))
+        file_path = os.path.join(os.path.dirname(__file__), "input", os.path.basename(file_path))
     elif file_path.startswith("/outs/"):
-        file_path = os.path.join(base_dir, "outs", os.path.basename(file_path))
+        file_path = os.path.join(os.path.dirname(__file__), "outs", os.path.basename(file_path))
     points = np.loadtxt(file_path)
     print(f"Loaded {points.shape[0]} points from {file_path}")
     return points
@@ -44,12 +43,11 @@ def voxel_downsample(points, voxel_size=0.5):
 
 # 4. 保存点云（xyz格式）
 def save_xyz(points, out_path):
-    # 自动将 /input/ 或 /outs/ 路径映射到 pointcloud_preprocess/input/ 和 outs/
-    base_dir = os.path.dirname(__file__)
+    # 自动将 /input/ 或 /outs/ 路径映射到当前脚本目录下
     if out_path.startswith("/input/"):
-        out_path = os.path.join(base_dir, "input", os.path.basename(out_path))
+        out_path = os.path.join(os.path.dirname(__file__), "input", os.path.basename(out_path))
     elif out_path.startswith("/outs/"):
-        out_path = os.path.join(base_dir, "outs", os.path.basename(out_path))
+        out_path = os.path.join(os.path.dirname(__file__), "outs", os.path.basename(out_path))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     np.savetxt(out_path, points, fmt='%.6f')
     print(f"Saved point cloud to {out_path}")
@@ -64,9 +62,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     points = load_xyz(args.input)
-    print(f"加载后点数: {points.shape[0]}")
     points = statistical_outlier_removal(points, nb_neighbors=args.nb_neighbors, std_ratio=args.std_ratio)
-    print(f"去噪后点数: {points.shape[0]}")
     points = voxel_downsample(points, voxel_size=args.voxel_size)
-    print(f"下采样后点数: {points.shape[0]}")
     save_xyz(points, args.output)

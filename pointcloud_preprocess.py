@@ -28,12 +28,11 @@ def denoise_point_cloud(pcd, nb_neighbors=5, std_ratio=1.0):
     print(f"Statistical outlier removal: {len(ind)} points remain")
     return cl
 
-# 3. 表面光滑（MLS）
-def smooth_point_cloud(pcd, search_radius=1.0):
-    pcd_smoothed = pcd.voxel_down_sample(voxel_size=0.5)
-    pcd_smoothed.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=search_radius, max_nn=30))
-    print("Normals estimated for MLS smoothing.")
-    return pcd_smoothed
+# 3. 下采样（体素网格）
+def downsample_point_cloud(pcd, voxel_size=0.05):
+    pcd_down = pcd.voxel_down_sample(voxel_size=voxel_size)
+    print(f"Voxel downsampled: {len(pcd_down.points)} points remain")
+    return pcd_down
 
 # 4. 空洞填补（Poisson重建）
 def fill_holes_poisson(pcd, depth=8):
@@ -78,14 +77,21 @@ if __name__ == "__main__":
 
     # 步骤1：加载
     pcd = load_point_cloud(args.input)
+    print(f"加载后点数: {len(pcd.points)}")
     # 步骤2：去噪
     pcd = denoise_point_cloud(pcd)
-    # 步骤3：光滑
-    pcd = smooth_point_cloud(pcd, search_radius=args.mls_radius)
-    # 步骤4：空洞填补（重建网格）
+    print(f"去噪后点数: {len(pcd.points)}")
+    # 步骤3：下采样
+    pcd = downsample_point_cloud(pcd, voxel_size=args.voxel_size)
+    print(f"下采样后点数: {len(pcd.points)}")
+    # 下采样后估算法线
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30))
+    print("下采样后已估算法线")
+    # 步骤4：Poisson重建
     mesh = fill_holes_poisson(pcd, depth=args.poisson_depth)
-    # 步骤5：密度均匀化（可选，对点云）
-    pcd_uniform = uniform_density(pcd, voxel_size=args.voxel_size)
+    # 步骤5：从网格表面采样点云
+    sampled_pcd = mesh.sample_points_poisson_disk(number_of_points=3000)
+    print(f"网格采样后点数: {len(sampled_pcd.points)}")
     # 步骤6：保存结果
     # 保存网格（.ply）
     mesh_out = args.output
@@ -96,4 +102,4 @@ if __name__ == "__main__":
     pcd_out = args.output
     if not pcd_out.endswith('.xyz'):
         pcd_out = pcd_out.rsplit('.', 1)[0] + '.xyz'
-    save_result(pcd_uniform, pcd_out)
+    save_result(sampled_pcd, pcd_out)
