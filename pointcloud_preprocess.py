@@ -29,7 +29,7 @@ def denoise_point_cloud(pcd, nb_neighbors=5, std_ratio=1.0):
     return cl
 
 # 3. 下采样（体素网格）
-def downsample_point_cloud(pcd, voxel_size=0.05):
+def downsample_point_cloud(pcd, voxel_size=0.01):
     pcd_down = pcd.voxel_down_sample(voxel_size=voxel_size)
     print(f"Voxel downsampled: {len(pcd_down.points)} points remain")
     return pcd_down
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="点云预处理：去噪、光滑、空洞填补、密度均匀化")
     parser.add_argument('--input', type=str, required=True, help='输入点云文件路径')
     parser.add_argument('--output', type=str, required=True, help='输出文件路径')
-    parser.add_argument('--voxel_size', type=float, default=0.05, help='体素下采样大小')
+    parser.add_argument('--voxel_size', type=float, default=0.0005, help='体素下采样大小')
     parser.add_argument('--mls_radius', type=float, default=5.0, help='MLS光滑搜索半径')
     parser.add_argument('--poisson_depth', type=int, default=8, help='Poisson重建深度')
     args = parser.parse_args()
