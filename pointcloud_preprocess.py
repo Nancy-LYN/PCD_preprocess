@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="点云预处理：去噪、光滑、空洞填补、密度均匀化")
     parser.add_argument('--input', type=str, required=True, help='输入点云文件路径')
     parser.add_argument('--output', type=str, required=True, help='输出文件路径')
-    parser.add_argument('--voxel_size', type=float, default=0.0005, help='体素下采样大小')
+    parser.add_argument('--voxel_size', type=float, default=0.005, help='体素下采样大小')
     parser.add_argument('--mls_radius', type=float, default=5.0, help='MLS光滑搜索半径')
     parser.add_argument('--poisson_depth', type=int, default=8, help='Poisson重建深度')
     args = parser.parse_args()
@@ -81,9 +81,15 @@ if __name__ == "__main__":
     # 步骤2：去噪
     pcd = denoise_point_cloud(pcd)
     print(f"去噪后点数: {len(pcd.points)}")
+    # 保存去噪后的点云
+    denoise_out = args.output.rsplit('.', 1)[0] + '.denoise.xyz'
+    save_result(pcd, denoise_out)
     # 步骤3：下采样
     pcd = downsample_point_cloud(pcd, voxel_size=args.voxel_size)
     print(f"下采样后点数: {len(pcd.points)}")
+    # 保存下采样后的点云
+    downsample_out = args.output.rsplit('.', 1)[0] + '.downsample.xyz'
+    save_result(pcd, downsample_out)
     # 下采样后估算法线
     pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30))
     print("下采样后已估算法线")
