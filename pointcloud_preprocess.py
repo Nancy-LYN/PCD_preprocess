@@ -35,9 +35,14 @@ def downsample_point_cloud(pcd, voxel_size=0.01):
     return pcd_down
 
 # 4. 空洞填补（Poisson重建）
-def fill_holes_poisson(pcd, depth=8):
+def fill_holes_poisson(pcd, depth=8, density_threshold=0.1):
     mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=depth)
     print("Poisson surface reconstruction done.")
+    # 剔除异常面片：根据密度阈值筛选
+    densities = np.asarray(densities)
+    vertices_to_remove = densities < np.quantile(densities, density_threshold)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
+    print(f"Removed {np.sum(vertices_to_remove)} low-density vertices.")
     return mesh
 
 # 网格Laplacian平滑
@@ -99,8 +104,8 @@ if __name__ == "__main__":
     # 下采样后估算法线
     pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30))
     print("下采样后已估算法线")
-    # 步骤4：Poisson重建
-    mesh = fill_holes_poisson(pcd, depth=args.poisson_depth)
+    # 步骤4：Poisson重建并剔除异常面片
+    mesh = fill_holes_poisson(pcd, depth=args.poisson_depth, density_threshold=0.1)
     # 步骤4.1：Laplacian平滑
     mesh_smooth = smooth_mesh_laplacian(mesh, iterations=10)
     # 步骤5：从平滑后的网格表面采样点云
