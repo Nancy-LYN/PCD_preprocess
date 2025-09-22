@@ -40,6 +40,12 @@ def fill_holes_poisson(pcd, depth=8):
     print("Poisson surface reconstruction done.")
     return mesh
 
+# 网格Laplacian平滑
+def smooth_mesh_laplacian(mesh, iterations=10):
+    mesh_smooth = mesh.filter_smooth_laplacian(number_of_iterations=iterations)
+    print(f"Laplacian mesh smoothing done ({iterations} iterations).")
+    return mesh_smooth
+
 # 5. 密度均匀化（体素下采样）
 def uniform_density(pcd, voxel_size=0.5):
     pcd_down = pcd.voxel_down_sample(voxel_size=voxel_size)
@@ -95,17 +101,20 @@ if __name__ == "__main__":
     print("下采样后已估算法线")
     # 步骤4：Poisson重建
     mesh = fill_holes_poisson(pcd, depth=args.poisson_depth)
-    # 步骤5：从网格表面采样点云
-    sampled_pcd = mesh.sample_points_poisson_disk(number_of_points=3000)
-    print(f"网格采样后点数: {len(sampled_pcd.points)}")
+    # 步骤4.1：Laplacian平滑
+    mesh_smooth = smooth_mesh_laplacian(mesh, iterations=10)
+    # 步骤5：从平滑后的网格表面采样点云
+    sampled_pcd_smooth = mesh_smooth.sample_points_poisson_disk(number_of_points=3000)
+    print(f"平滑网格采样后点数: {len(sampled_pcd_smooth.points)}")
     # 步骤6：保存结果
-    # 保存网格（.ply）
+    # 保存原始网格（.ply）
     mesh_out = args.output
     if not mesh_out.endswith('.ply'):
         mesh_out = mesh_out.rsplit('.', 1)[0] + '.ply'
     save_result(mesh, mesh_out)
-    # 保存点云（.xyz）
-    pcd_out = args.output
-    if not pcd_out.endswith('.xyz'):
-        pcd_out = pcd_out.rsplit('.', 1)[0] + '.xyz'
-    save_result(sampled_pcd, pcd_out)
+    # 保存平滑网格（.ply）
+    mesh_smooth_out = args.output.rsplit('.', 1)[0] + '.smooth.ply'
+    save_result(mesh_smooth, mesh_smooth_out)
+    # 保存平滑采样点云（.xyz）
+    pcd_smooth_out = args.output.rsplit('.', 1)[0] + '.smooth.xyz'
+    save_result(sampled_pcd_smooth, pcd_smooth_out)
