@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # 步骤4：Poisson重建并剔除异常面片
     mesh = fill_holes_poisson(pcd, depth=args.poisson_depth, density_threshold=0.1)
     # 步骤4.1：Laplacian平滑
-    mesh_smooth = smooth_mesh_laplacian(mesh, iterations=10)
+    mesh_smooth = smooth_mesh_laplacian(mesh, iterations=1000)
     # 步骤5：从平滑后的网格表面采样点云
     sampled_pcd_smooth = mesh_smooth.sample_points_poisson_disk(number_of_points=3000)
     print(f"平滑网格采样后点数: {len(sampled_pcd_smooth.points)}")
