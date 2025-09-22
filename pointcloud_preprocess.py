@@ -23,7 +23,7 @@ def load_point_cloud(file_path):
     return pcd
 
 # 2. 去噪（统计滤波）
-def denoise_point_cloud(pcd, nb_neighbors=5, std_ratio=1.0):
+def denoise_point_cloud(pcd, nb_neighbors=5, std_ratio=0.5):
     cl, ind = pcd.remove_statistical_outlier(nb_neighbors=nb_neighbors, std_ratio=std_ratio)
     print(f"Statistical outlier removal: {len(ind)} points remain")
     return cl
@@ -86,6 +86,15 @@ if __name__ == "__main__":
     parser.add_argument('--poisson_depth', type=int, default=8, help='Poisson重建深度')
     args = parser.parse_args()
 
+    # 自动创建输出子文件夹
+    import os
+    out_base = os.path.dirname(args.output)
+    out_name = os.path.splitext(os.path.basename(args.output))[0]
+    out_dir = os.path.join(out_base, out_name)
+    os.makedirs(out_dir, exist_ok=True)
+    def save_to_subfolder(obj, filename):
+        save_result(obj, os.path.join(out_dir, filename))
+
     # 步骤1：加载
     pcd = load_point_cloud(args.input)
     print(f"加载后点数: {len(pcd.points)}")
@@ -93,14 +102,12 @@ if __name__ == "__main__":
     pcd = denoise_point_cloud(pcd)
     print(f"去噪后点数: {len(pcd.points)}")
     # 保存去噪后的点云
-    denoise_out = args.output.rsplit('.', 1)[0] + '.denoise.xyz'
-    save_result(pcd, denoise_out)
+    save_to_subfolder(pcd, f'{out_name}.denoise.xyz')
     # 步骤3：下采样
     pcd = downsample_point_cloud(pcd, voxel_size=args.voxel_size)
     print(f"下采样后点数: {len(pcd.points)}")
     # 保存下采样后的点云
-    downsample_out = args.output.rsplit('.', 1)[0] + '.downsample.xyz'
-    save_result(pcd, downsample_out)
+    save_to_subfolder(pcd, f'{out_name}.downsample.xyz')
     # 下采样后估算法线
     pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30))
     print("下采样后已估算法线")
@@ -112,14 +119,23 @@ if __name__ == "__main__":
     sampled_pcd_smooth = mesh_smooth.sample_points_poisson_disk(number_of_points=3000)
     print(f"平滑网格采样后点数: {len(sampled_pcd_smooth.points)}")
     # 步骤6：保存结果
-    # 保存原始网格（.ply）
-    mesh_out = args.output
-    if not mesh_out.endswith('.ply'):
-        mesh_out = mesh_out.rsplit('.', 1)[0] + '.ply'
-    save_result(mesh, mesh_out)
-    # 保存平滑网格（.ply）
-    mesh_smooth_out = args.output.rsplit('.', 1)[0] + '.smooth.ply'
-    save_result(mesh_smooth, mesh_smooth_out)
-    # 保存平滑采样点云（.xyz）
-    pcd_smooth_out = args.output.rsplit('.', 1)[0] + '.smooth.xyz'
-    save_result(sampled_pcd_smooth, pcd_smooth_out)
+    save_to_subfolder(mesh, f'{out_name}.ply')
+    save_to_subfolder(mesh_smooth, f'{out_name}.smooth.ply')
+    save_to_subfolder(sampled_pcd_smooth, f'{out_name}.smooth.xyz')
+
+    # 多轮迭代：去噪-泊松重建-平滑-采样
+    iter_num = 2  # 可调整迭代次数
+    pcd_iter = sampled_pcd_smooth
+    for i in range(iter_num):
+        print(f"\n--- 迭代 {i+1} ---")
+        pcd_iter = denoise_point_cloud(pcd_iter)
+        print(f"迭代{i+1}去噪后点数: {len(pcd_iter.points)}")
+        pcd_iter.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30))
+        mesh_iter = fill_holes_poisson(pcd_iter, depth=args.poisson_depth, density_threshold=0.1)
+        mesh_iter_smooth = smooth_mesh_laplacian(mesh_iter, iterations=1000)
+        pcd_iter_sampled = mesh_iter_smooth.sample_points_poisson_disk(number_of_points=3000)
+        print(f"迭代{i+1}平滑网格采样后点数: {len(pcd_iter_sampled.points)}")
+        save_to_subfolder(mesh_iter, f'{out_name}.iter{i+1}.ply')
+        save_to_subfolder(mesh_iter_smooth, f'{out_name}.iter{i+1}.smooth.ply')
+        save_to_subfolder(pcd_iter_sampled, f'{out_name}.iter{i+1}.smooth.xyz')
+        pcd_iter = pcd_iter_sampled
