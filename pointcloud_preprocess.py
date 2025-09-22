@@ -23,7 +23,7 @@ def load_point_cloud(file_path):
     return pcd
 
 # 2. 去噪（统计滤波）
-def denoise_point_cloud(pcd, nb_neighbors=5, std_ratio=0.5):
+def denoise_point_cloud(pcd, nb_neighbors=10, std_ratio=0.05):
     cl, ind = pcd.remove_statistical_outlier(nb_neighbors=nb_neighbors, std_ratio=std_ratio)
     print(f"Statistical outlier removal: {len(ind)} points remain")
     return cl
