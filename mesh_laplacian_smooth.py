@@ -15,7 +15,7 @@ def save_point_cloud(pcd, out_path):
 
 def laplacian_smooth(mesh, iterations=20, lambda_coef=0.5):
     # Open3D Laplacian smooth: preserves overall shape, smooths local noise
-    mesh_out = mesh.filter_smooth_laplacian(number_of_iterations=iterations, lambda_lambda=lambda_coef)
+    mesh_out = mesh.filter_smooth_laplacian(number_of_iterations=iterations, lambda_filter=lambda_coef)
     mesh_out.compute_vertex_normals()
     return mesh_out
 
