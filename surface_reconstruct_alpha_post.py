@@ -35,15 +35,13 @@ def postprocess_mesh_remove_sharp(mesh, min_area=1e-4, max_aspect_ratio=20):
     triangles = np.asarray(mesh.triangles)
     to_remove = []
     for i, area in enumerate(cluster_area):
-        # 面积太小的片段直接删除
-        if area < min_area:
+        # 只删除面积大于阈值的片段
+        if area > min_area:
             to_remove.extend(np.where(triangle_clusters == i)[0])
-    # 计算每个片段的长宽比，删除极端细长的片段
-    # 这里只做面积过滤，长宽比可根据实际需求补充
     if to_remove:
         mesh.remove_triangles_by_index(to_remove)
         mesh.remove_unreferenced_vertices()
-        print(f"Removed {len(to_remove)} triangles (small/sharp regions)")
+        print(f"Removed {len(to_remove)} triangles (large area regions)")
     return mesh
 
 def fill_mesh_holes_with_trimesh(mesh, out_path=None):
