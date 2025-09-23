@@ -2,6 +2,7 @@ import open3d as o3d
 import numpy as np
 import argparse
 import os
+import trimesh
 
 def load_point_cloud(file_path):
     base_dir = os.path.dirname(__file__)
@@ -45,6 +46,24 @@ def postprocess_mesh_remove_sharp(mesh, min_area=1e-4, max_aspect_ratio=20):
         print(f"Removed {len(to_remove)} triangles (small/sharp regions)")
     return mesh
 
+def fill_mesh_holes_with_trimesh(mesh, out_path=None):
+    # Open3D mesh -> trimesh
+    vertices = np.asarray(mesh.vertices)
+    faces = np.asarray(mesh.triangles)
+    tmesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+    n_before = tmesh.faces.shape[0]
+    n_holes = tmesh.fill_holes()
+    n_after = tmesh.faces.shape[0]
+    print(f"Filled {n_holes} holes, faces: {n_before} -> {n_after}")
+    if out_path:
+        tmesh.export(out_path)
+        print(f"Saved mesh with holes filled to {out_path}")
+    # 转回Open3D mesh
+    mesh_filled = o3d.geometry.TriangleMesh()
+    mesh_filled.vertices = o3d.utility.Vector3dVector(tmesh.vertices)
+    mesh_filled.triangles = o3d.utility.Vector3iVector(tmesh.faces)
+    return mesh_filled
+
 def sample_mesh_points(mesh, num_points=3000):
     return mesh.sample_points_poisson_disk(number_of_points=num_points)
 
@@ -74,10 +93,13 @@ if __name__ == "__main__":
     mesh_alpha_post = postprocess_mesh_remove_sharp(mesh_alpha, min_area=args.min_area)
     save_result(mesh_alpha_post, out_dir, f'{out_name}_alpha_shape_post.ply')
 
+    # 空洞填补
+    mesh_alpha_filled = fill_mesh_holes_with_trimesh(mesh_alpha_post, out_path=os.path.join(out_dir, f'{out_name}_alpha_shape_filled.ply'))
+
     # 采样点云
-    pcd_alpha = sample_mesh_points(mesh_alpha_post, num_points=3000)
-    print(f"Alpha Shape后处理采样点云数量: {len(pcd_alpha.points)}")
-    save_result(pcd_alpha, out_dir, f'{out_name}_alpha_shape_post.xyz')
+    pcd_alpha = sample_mesh_points(mesh_alpha_filled, num_points=3000)
+    print(f"Alpha Shape空洞填补采样点云数量: {len(pcd_alpha.points)}")
+    save_result(pcd_alpha, out_dir, f'{out_name}_alpha_shape_filled.xyz')
 
 # 用法示例：
 # python surface_reconstruct_alpha_post.py --input input/xxx.xyz --output outs/xxx_compare --alpha 0.05 --min_area 1e-4
