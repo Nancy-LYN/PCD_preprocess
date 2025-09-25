@@ -17,6 +17,14 @@ def laplacian_smooth(mesh, iterations=20, lambda_coef=0.5):
     # Open3D Laplacian smooth: preserves overall shape, smooths local noise
     mesh_out = mesh.filter_smooth_laplacian(number_of_iterations=iterations, lambda_filter=lambda_coef)
     mesh_out.compute_vertex_normals()
+    # 去除异常面片
+    mesh_out.remove_degenerate_triangles()
+    mesh_out.remove_duplicated_triangles()
+    mesh_out.remove_non_manifold_edges()
+    mesh_out.remove_duplicated_vertices()
+    # 填补空洞（Open3D 0.17+ 支持）
+    if hasattr(mesh_out, 'fill_holes'):
+        mesh_out = mesh_out.fill_holes()
     return mesh_out
 
 def sample_mesh_points(mesh, num_points=3000):
